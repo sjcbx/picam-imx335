@@ -45,8 +45,8 @@ FLASH_MS = 0.6                         # flash/feedback duration
 EXP_STEP_US = 2000                     # 2 ms step for manual exposure
 GAIN_STEP = 0.1                        # analogue gain step
 
-MIN_EXPOSURE_US = 100                  # 0.1 ms
-MAX_EXPOSURE_US = 85_000           # 5 s
+MIN_EXPOSURE_US = 100                  # 1/10,000 s
+MAX_EXPOSURE_US = 85_000               # 1/12 s
 MIN_GAIN = 1.0
 MAX_GAIN = 9.6
 
@@ -381,6 +381,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
