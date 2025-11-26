@@ -47,8 +47,8 @@ GAIN_STEP = 0.1                        # analogue gain step
 
 MIN_EXPOSURE_US = 100                  # 1/10,000 s
 MAX_EXPOSURE_US = 85_000               # 1/12 s
-MIN_GAIN = 1.0
-MAX_GAIN = 9.6
+MIN_GAIN = 1.0                         # ~ equivalent to ISO 100
+MAX_GAIN = 9.6                         # ~ equivalent to ISO 6400
 
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -381,6 +381,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
