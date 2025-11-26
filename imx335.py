@@ -3,7 +3,6 @@
 imx335_cam_v3.py
 
 Camera app for Arducam IMX335 on Raspberry Pi.
-Creator: Sean Burrage
 
 Features:
 - Live preview (640x480 by default)
@@ -35,6 +34,7 @@ import cv2
 import numpy as np
 from picamera2 import Picamera2
 from libcamera import controls
+import math
 
 # ---- Config ----
 DISPLAY_SIZE = (640, 480)              # preview size (DSI target)
@@ -100,7 +100,7 @@ class SimpleCameraApp:
         time.sleep(0.15)
         self.picam2.set_controls({"AeEnable": True})
 
-        # GPIO placeholder (for future)
+        # Optional GPIO placeholder
         self.gpio = None
         try:
             import gpiozero  # noqa: F401
@@ -119,13 +119,41 @@ class SimpleCameraApp:
                 metadata = self.picam2.capture_metadata()
 
                 exposure_us = metadata.get("ExposureTime", 0)
-                analogue_gain = metadata.get("AnalogueGain", 1.0)
+                # For reasons unknown to anybody but god, the picamera2 API has 2 different gains:
+                # AnalogueGain & DigitalGain.
+                # The former is readable and controllable. The latter is only readable.
+                analogue_gain = round(metadata.get("AnalogueGain", 1.0),2)
+                digital_gain = round(metadata.get("DigitalGain", 1.0),2)
                 iso_est = int(analogue_gain * 100)
+                total_gain = round((analogue_gain * digital_gain),2)
+                
+                display_gain = (self.manual_gain if (not self.ae_enabled and self.manual_gain is not None) else total_gain)
+                display_gain = float(display_gain)
+                display_gain = max(1.0, min(9.6, display_gain))
+                iso_est_raw = float(display_gain) * 100.0
+                
+                # --- map sensor gain -> ISO (power law) ---
+                GAIN_MIN = 1.0
+                GAIN_MAX = 9.6   # now use 9.6 as top end
+                ISO_MIN = 100
+                ISO_MAX = 6400
+                
+                expo = 1.0
+                if GAIN_MAX > GAIN_MIN and ISO_MAX > ISO_MIN:
+                    expo = math.log(ISO_MAX / ISO_MIN) / math.log(GAIN_MAX / GAIN_MIN)
+
+                iso_float = ISO_MIN * ((display_gain / GAIN_MIN) ** expo)
+
+                # --- rounding to camera-style ISO (nearest standard ISO) ---
+                STANDARD_ISOS = [100,110,125,140,160,180,200,220,250,280,320,400,500,640,800,1000,1250,1600,2000,2200,2350,2500,2800,3000,3200,3600,4000,4500,5000,5600,6400]
+                iso_est = min(STANDARD_ISOS, key=lambda s: abs(s - iso_float))
+                # iso_est now is e.g. 100, 200, 400, 800, 1600, 3200, 6400 etc.
+
 
                 shutter_str = self._format_shutter(exposure_us)
 
                 # Draw overlays
-                self._draw_overlay(frame, shutter_str, iso_est)
+                self._draw_overlay(frame, shutter_str, analogue_gain, total_gain, iso_est)
 
                 # Flash overlay if active
                 now = time.time()
@@ -165,20 +193,22 @@ class SimpleCameraApp:
             else:
                 return f"{int(exposure_s)}s"
 
-    def _draw_overlay(self, frame, shutter_str: str, iso: int):
+    def _draw_overlay(self, frame, shutter_str: str, a_gain, d_gain, iso_est):
         h, w, _ = frame.shape
         font = cv2.FONT_HERSHEY_SIMPLEX
         fs = 0.7
         th = 2
         margin = 12
+        
+        #r_gain = round((self.manual_gain),2)
 
         mode_text = "RAW" if self.raw_mode else "JPEG"
         ae_text = "AE: ON" if self.ae_enabled else f"AE: OFF"
-        info_text = f"{ae_text}  {shutter_str}   ISO {iso}   MODE: {mode_text}"
+        info_text = f"{ae_text}  {shutter_str}   ISO {iso_est}   MODE: {mode_text}"
         cv2.putText(frame, info_text, (margin + 2, h - margin + 2), font, fs, (0, 0, 0), th + 2, cv2.LINE_AA)
         cv2.putText(frame, info_text, (margin, h - margin), font, fs, (255, 255, 255), th, cv2.LINE_AA)
 
-        ae_text = "AE: ON     Press h to toggle help" if self.ae_enabled else f"AE: OFF  E={self.manual_exposure_us or 'â'} G={self.manual_gain or 'â'}"
+        ae_text = f"AE: ON  E={shutter_str or 'â'} AG={a_gain or 'â'} TG={d_gain or 'â'}" if self.ae_enabled else f"AE: OFF  E={self.manual_exposure_us or 'â'} AG={self.manual_gain or 'â'} TG={d_gain or 'â'}"
         cv2.putText(frame, ae_text, (margin, 26), font, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
 
         if self.show_help:
@@ -351,4 +381,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
