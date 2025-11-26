@@ -46,9 +46,9 @@ EXP_STEP_US = 2000                     # 2 ms step for manual exposure
 GAIN_STEP = 0.1                        # analogue gain step
 
 MIN_EXPOSURE_US = 100                  # 0.1 ms
-MAX_EXPOSURE_US = 5_000_000           # 5 s
+MAX_EXPOSURE_US = 85_000           # 5 s
 MIN_GAIN = 1.0
-MAX_GAIN = 16.0
+MAX_GAIN = 9.6
 
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -381,5 +381,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
