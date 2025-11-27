@@ -81,9 +81,6 @@ class SimpleCameraApp:
         self.picam2.configure(self.preview_config)
 
 
-        # Start preview config by default
-        self.picam2.configure(self.preview_config)
-
         # State
         self.running = True
         self.show_help = False
@@ -381,6 +378,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
